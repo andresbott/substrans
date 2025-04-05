@@ -1,0 +1,26 @@
+# ---> Go
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# IDE shenanigans
+*.iml
+.idea/
+
+# build output
+dist/
+
+# SPA
+app/spa/files/ui/*
+!app/spa/files/ui/.gitkeep
+
+# project databases
+carbon.db
+zarf/appData/session
+!zarf/appData/session/.gitkeep
