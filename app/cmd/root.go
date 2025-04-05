@@ -30,8 +30,8 @@ func newRootCommand() *cobra.Command {
 	})
 
 	cmd.AddCommand(
-		//serverCmd(),
 		versionCmd(),
+		translateCmd(),
 	)
 
 	return cmd
