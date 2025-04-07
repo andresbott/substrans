@@ -1,10 +1,11 @@
-package translator
+package subsedit
 
 import (
 	"fmt"
 	"log"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/asticode/go-astisub"
 )
@@ -52,9 +53,11 @@ func (t *Translator) GetNthItem(n int) (*astisub.Item, error) {
 	return t.subtitles.Items[n], nil
 }
 
+type TextReplace func([]astisub.Item, astisub.Item, []astisub.Item) ([]astisub.Line, error)
+
 // ReplaceLineWithCallback replaces a single line with the string value returned by the callback
 // accepts two parameters: slices of previous and next lines of size constextSize
-func (t *Translator) ReplaceLineWithCallback(index int, contextSize int, callback func([]astisub.Item, astisub.Item, []astisub.Item) ([]astisub.Line, error)) error {
+func (t *Translator) ReplaceLineWithCallback(index int, contextSize int, callback TextReplace) error {
 	if index < 0 || index >= len(t.subtitles.Items) {
 		return fmt.Errorf("index out of range")
 	}
@@ -104,8 +107,41 @@ func (t *Translator) ReplaceLineWithCallback(index int, contextSize int, callbac
 			}
 		}
 	}
-
 	return nil
+}
+
+// IterateAndReplace processes each item and logs the progress
+func (t *Translator) IterateAndReplace(contextSize int, callback TextReplace) error {
+	totalItems := len(t.subtitles.Items)
+	var totalDuration time.Duration
+
+	for i := 0; i < totalItems; i++ {
+		start := time.Now()
+
+		err := t.ReplaceLineWithCallback(i, contextSize, callback)
+		if err != nil {
+			return fmt.Errorf("error processing item %d: %w", i, err)
+		}
+
+		duration := time.Since(start)
+		totalDuration += duration
+
+		// Calculate estimated remaining time
+		averageDuration := totalDuration / time.Duration(i+1)
+		estimatedRemaining := averageDuration * time.Duration(totalItems-i-1)
+
+		t.logger.Info("Processing line",
+			"line", i+1,
+			"total", totalItems,
+			"duration", duration,
+			"remaining", estimatedRemaining,
+		)
+	}
+	return nil
+}
+
+func (t *Translator) Write(p string) error {
+	return t.subtitles.Write(p)
 }
 
 // DeepCopyItem creates a deep copy of an astisub.Item

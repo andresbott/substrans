@@ -1,10 +1,13 @@
-package translator
+package subsedit
 
 import (
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"io"
 	"log/slog"
+	"os"
+	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/asticode/go-astisub"
 	"github.com/google/go-cmp/cmp"
@@ -25,8 +28,7 @@ func TestLoadAndReadSubtitles(t *testing.T) {
 		t.Fatalf("Failed to get the first subtitle item: %v", err)
 	}
 
-	// Define the expected text of the first line
-	expectedText := "Expected text of the first line"
+	expectedText := "The Roble Sacred Kingdom, lying on a peninsula"
 
 	// Compare the actual text with the expected text using cmp.Diff
 	if len(firstItem.Lines) > 0 && len(firstItem.Lines[0].Items) > 0 {
@@ -238,6 +240,54 @@ func TestReplaceLineWithCallback(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestIterateAndReplace(t *testing.T) {
+	filePath := "testData/overlord.ass"
+
+	// Create a new Translator instance
+	translator, err := New(filePath, silentLogger())
+	if err != nil {
+		t.Fatalf("Failed to create Translator: %v", err)
+	}
+
+	// Define the callback function
+	callback := func(prevItems []astisub.Item, actualItem astisub.Item, nextItems []astisub.Item) ([]astisub.Line, error) {
+		out := []astisub.Line{}
+		for _, line := range actualItem.Lines {
+			newLine := astisub.Line{Items: []astisub.LineItem{}}
+			for _, item := range line.Items {
+				newLine.Items = append(newLine.Items, astisub.LineItem{Text: "[[" + item.Text + "]]"})
+			}
+			out = append(out, newLine)
+		}
+		return out, nil
+	}
+
+	// Call IterateAndReplace with context size 1
+	err = translator.IterateAndReplace(1, callback)
+	if err != nil {
+		t.Fatalf("Failed to iterate and replace: %v", err)
+	}
+
+	// Write the modified subtitles to a buffer
+	var buf strings.Builder
+	err = translator.subtitles.WriteToSSA(&buf)
+	if err != nil {
+		t.Fatalf("Failed to write subtitles to buffer: %v", err)
+	}
+	//translator.Write("testData/overlord_modified.ass")
+
+	modifiedFile := "testData/overlord_modified.ass"
+	originalContent, err := os.ReadFile(modifiedFile)
+	if err != nil {
+		t.Fatalf("Failed to read original file: %v", err)
+	}
+
+	// Compare the buffer content with the original file content
+	if diff := cmp.Diff(string(originalContent), buf.String()); diff != "" {
+		t.Errorf("Mismatch (-expected +actual):\n%s", diff)
 	}
 }
 
