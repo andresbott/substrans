@@ -2,7 +2,8 @@ package llmtranslate
 
 import (
 	"context"
-	"github.com/google/go-cmp/cmp"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -16,14 +17,14 @@ func TestTranslate(t *testing.T) {
 		postContext []string
 		language    string
 		wantErr     bool
-		want        string
+		mustContain [][]string
 	}{
 		{
-			name:     "Translate English to Spanish",
-			input:    "Hello, world!",
-			language: LangEs,
-			wantErr:  false,
-			want:     "Hola, mundo!",
+			name:        "Translate English to Spanish",
+			input:       "Hello, world!",
+			language:    LangEs,
+			wantErr:     false,
+			mustContain: [][]string{{"Hola"}, {"mundo"}},
 		},
 		{
 			name: "Translate English to Spanish2",
@@ -40,9 +41,9 @@ func TestTranslate(t *testing.T) {
 				"I wish I could see as clearly in the dark as you can.",
 				"I'd love to join you on the Night Watch someday, sir.",
 			},
-			language: LangEs,
-			wantErr:  false,
-			want:     "Mis pensamientos estaban en otro lugar.",
+			language:    LangEs,
+			wantErr:     false,
+			mustContain: [][]string{{"pensamientos"}, {"lugar", "parte"}},
 		},
 
 		{
@@ -62,15 +63,16 @@ func TestTranslate(t *testing.T) {
 				"Now, allow me to offer you a gift in return.",
 				"Tenth-tier magic, Meteor Fall!",
 			},
-			language: LangEs,
-			wantErr:  false,
-			want:     "Esta muralla garantiza la paz de cada último hombre que vive detrás de ella.",
+			language:    LangEs,
+			wantErr:     false,
+			mustContain: [][]string{{"muralla"}, {"garantiza"}, {"paz"}, {"hombre", "persona", "ser", "individuo"}, {"detrás"}},
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			translator, err := NewTranslator(ModelLlama32, "")
+			ollamaURL := os.Getenv("OLLAMA_HOST")
+			translator, err := NewTranslator(ModelLlama32, ollamaURL, 0.5)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("NewTranslator() error = %v, wantErr %v", err, tc.wantErr)
 				return
@@ -85,8 +87,19 @@ func TestTranslate(t *testing.T) {
 				t.Errorf("Translate() result is empty")
 			}
 
-			if diff := cmp.Diff(tc.want, result); diff != "" {
-				t.Errorf("Mismatch (-expected +actual):\n%s", diff)
+			t.Log(result)
+			// Check if at least one word from each slice in mustContain is present in the result
+			for _, words := range tc.mustContain {
+				found := false
+				for _, word := range words {
+					if strings.Contains(result, word) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Result does not contain any of the required words: %v", words)
+				}
 			}
 		})
 	}

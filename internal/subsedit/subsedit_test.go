@@ -16,10 +16,10 @@ import (
 func TestLoadAndReadSubtitles(t *testing.T) {
 	filePath := "testData/overlord.ass"
 
-	// Create a new Translator instance
+	// Create a new Editor instance
 	translator, err := New(filePath, silentLogger())
 	if err != nil {
-		t.Fatalf("Failed to create Translator: %v", err)
+		t.Fatalf("Failed to create Editor: %v", err)
 	}
 
 	// Get the first subtitle item
@@ -183,10 +183,10 @@ func TestReplaceLineWithCallback(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a new Translator instance
+			// Create a new Editor instance
 			translator, err := New(tc.filePath, silentLogger())
 			if err != nil {
-				t.Fatalf("Failed to create Translator: %v", err)
+				t.Fatalf("Failed to create Editor: %v", err)
 			}
 
 			// Capture the parameters passed to the callback
@@ -246,10 +246,10 @@ func TestReplaceLineWithCallback(t *testing.T) {
 func TestIterateAndReplace(t *testing.T) {
 	filePath := "testData/overlord.ass"
 
-	// Create a new Translator instance
+	// Create a new Editor instance
 	translator, err := New(filePath, silentLogger())
 	if err != nil {
-		t.Fatalf("Failed to create Translator: %v", err)
+		t.Fatalf("Failed to create Editor: %v", err)
 	}
 
 	// Define the callback function

@@ -9,22 +9,24 @@ import (
 	"github.com/tmc/langchaingo/llms/ollama"
 )
 
-// TranslateLine represents the payload for translation
-
 // Translator is responsible for connecting to Ollama and translating text
 type Translator struct {
 	client *ollama.LLM
+	temp   float64
 }
 
 const ModelLlama3 = "llama3"
+const ModelLlama31 = "llama3.1:8b"
 const ModelLlama32 = "llama3.2"
 const ModelPhi35mini = "phi3.5"
 const ModelPhi4 = "phi4:14b"
 const ModelGemma3 = "gemma3:12b"
+const Mistral7b = "mixtral:8x7b"
+const MistralNemo = "mistral-nemo"
 const defaultUrl = "http://127.0.0.1:11434"
 
 // NewTranslator creates a new Translator instance
-func NewTranslator(model, url string) (*Translator, error) {
+func NewTranslator(model, url string, temp float64) (*Translator, error) {
 
 	if url == "" {
 		url = defaultUrl
@@ -36,6 +38,7 @@ func NewTranslator(model, url string) (*Translator, error) {
 	}
 	t := &Translator{
 		client: llm,
+		temp:   temp,
 	}
 	return t, nil
 }
@@ -60,7 +63,7 @@ translate the line:
 '{{.Line}}' 
 into {{.Lang}}
 
-Please make sure to only say the translated line, no babling or explanation, don't print the context.
+Please make sure to only say the translated line, no babbling or explanation, don't print the context, don't print special chars like " to indicate this is the output.
 `
 
 // FormatMessage formats the message for translation using the Go template engine
@@ -83,7 +86,7 @@ const LangEs = "spanish from spain"
 
 const systemPromt = `You are a professional translator with deep knowledge of different languages and phrasing.
 your task is to translate movie subtitles from one language to another trying to keep the sentiment of the conversation and the tone as close as possible to the original. 
-You will be given a context and a line to translate in that context`
+You will be given a context and a line to translate in that context.`
 
 // Translate translates the given text to the specified language
 func (t *Translator) Translate(ctx context.Context, prevContext, postContext []string, translateLine, lang string) (string, error) {
@@ -103,7 +106,7 @@ func (t *Translator) Translate(ctx context.Context, prevContext, postContext []s
 		llms.TextParts(llms.ChatMessageTypeSystem, systemPromt),
 		llms.TextParts(llms.ChatMessageTypeHuman, parsedMsg),
 	}
-	resp, err := t.client.GenerateContent(ctx, content, llms.WithTemperature(0.3))
+	resp, err := t.client.GenerateContent(ctx, content, llms.WithTemperature(t.temp))
 	if err != nil {
 		return "", err
 	}
