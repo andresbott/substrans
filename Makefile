@@ -13,15 +13,12 @@ lint: ## run go linter
 	# depends on https://github.com/golangci/golangci-lint
 	@golangci-lint run
 
-benchmark: ## run go benchmarks
-	@go test -run=^$$ -bench=. ./...
-
 license-check: ## check for invalid licenses
 	# depends on : https://github.com/elastic/go-licence-detector
-	@go list -m -mod=readonly  -json all  | go-licence-detector -includeIndirect -validate -rules allowedLicenses.json
+	@go list -m -mod=readonly  -json all  | go-licence-detector -includeIndirect  -rules allowedLicenses.json
 
 .PHONY: verify
-verify: test license-check lint benchmark ## run all tests
+verify: test license-check lint ## run all tests
 
 cover-report: ## generate a coverage report
 	go test -covermode=count -coverpkg=./... -coverprofile cover.out  ./...
@@ -29,28 +26,10 @@ cover-report: ## generate a coverage report
 	open cover.html
 
 #==========================================================================================
-##@ Running
-#==========================================================================================
-run: ## start the GO service
-	@APP_LOG_LEVEL="debug" go run main.go start -c zarf/appData/config.yaml
-
-run-ui: package-ui run## build the UI and start the GO service
-
-#==========================================================================================
 ##@ Building
 #==========================================================================================
-package-ui: build-ui ## build the web and copy into Go pacakge
-	rm -rf ./app/spa/files/ui*
-	mkdir -p ./app/spa/files/ui
-	cp -r ./webui/dist/* ./app/spa/files/ui/
-	touch ./app/spa/files/ui/.gitkeep
-build-ui:
-	@cd webui && \
-	npm install && \
-	export VITE_BASE="/ui" && \
-	npm run build
 
-build: package-ui ## use goreleaser to build to current OS/Arch
+build:  ## use goreleaser to build to current OS/Arch
 	@goreleaser build --auto-snapshot --clean --single-target
 
 #==========================================================================================

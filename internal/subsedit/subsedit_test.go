@@ -136,7 +136,6 @@ func TestReplaceLineWithCallback(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name:         "Replace the one to last line of an .ass file",
 			filePath:     "testData/overlord.ass",
@@ -176,10 +175,38 @@ func TestReplaceLineWithCallback(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:         "Replace line with special position",
+			filePath:     "testData/withPos.ass",
+			lineNumber:   1,
+			constextSize: 1,
+			expectedText: []astisub.Line{
+				{Items: []astisub.LineItem{{Text: "[[]]"}, {Text: "[[Syr]]"}}},
+			},
+			previousItems: []astisub.Item{
+				{
+					Lines: []astisub.Line{
+						{Items: []astisub.LineItem{{Text: "I need to validate myself. And prove who I want to be."}}},
+					},
+				},
+			},
+			actualItem: astisub.Item{
+				Lines: []astisub.Line{
+					{Items: []astisub.LineItem{{Text: ""}, {Text: "Syr"}}},
+				},
+			},
+			nextItems: []astisub.Item{
+				{
+					Lines: []astisub.Line{
+						{Items: []astisub.LineItem{{Text: "Congratulations, Little Miss Supporter!"}}},
+					},
+				},
+			},
+		},
 	}
 
-	ignoreItemProps := cmpopts.IgnoreFields(astisub.Item{}, "Comments", "Index", "EndAt", "InlineStyle", "Region", "StartAt", "Style")
-	_ = ignoreItemProps
+	ignoreItemProps := cmpopts.IgnoreFields(astisub.Item{}, "Comments", "Index", "EndAt", "InlineStyle", "Region", "StartAt", "Style", "InlineStyle")
+	ignoreLineProps := cmpopts.IgnoreFields(astisub.LineItem{}, "InlineStyle")
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -235,7 +262,7 @@ func TestReplaceLineWithCallback(t *testing.T) {
 			}
 
 			// Check if the line was replaced correctly
-			if diff := cmp.Diff(tc.expectedText, got.Lines); diff != "" {
+			if diff := cmp.Diff(tc.expectedText, got.Lines, ignoreLineProps); diff != "" {
 				t.Errorf("Mismatch (-expected +actual):\n%s", diff)
 			}
 

@@ -1,12 +1,9 @@
 package subsedit
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,9 +11,9 @@ import (
 )
 
 type Editor struct {
-	subtitles   *astisub.Subtitles
-	logger      *slog.Logger
-	tmpFilePath string
+	subtitles    *astisub.Subtitles
+	originalSubs *astisub.Subtitles
+	logger       *slog.Logger
 }
 
 type slogWriter struct {
@@ -40,15 +37,21 @@ func New(filePath string, logger *slog.Logger) (*Editor, error) {
 		logger.Debug(fmt.Sprintf("error loading subtitle file: %v", err))
 		return nil, fmt.Errorf("error loading subtitle file: %v", err)
 	}
+
+	// we load the subs twice: once to read and once to replace translated text
+	originalSubs, err := astisub.OpenFile(filePath)
+	if err != nil {
+		logger.Debug(fmt.Sprintf("error loading subtitle file: %v", err))
+		return nil, fmt.Errorf("error loading subtitle file: %v", err)
+	}
 	logger.Debug("Subtitle file loaded successfully")
 
-	// Determine the absolute path for the tmp.json file
-	dir := filepath.Dir(filePath)
-	base := filepath.Base(filePath)
-	tmpFileName := base[:len(base)-len(filepath.Ext(base))] + ".tmp.json"
-	tmpFilePath := filepath.Join(dir, tmpFileName)
-
-	return &Editor{subtitles: subtitles, logger: logger, tmpFilePath: tmpFilePath}, nil
+	e := &Editor{
+		subtitles:    subtitles,
+		originalSubs: originalSubs,
+		logger:       logger,
+	}
+	return e, nil
 }
 
 // GetTotalItems returns the total number of subtitle items
@@ -78,16 +81,14 @@ func (t *Editor) ReplaceLineWithCallback(index int, contextSize int, callback Te
 	if index > 0 { // Ensure there are previous items
 		itemCount := 0
 		for i := index - 1; i >= 0 && itemCount < contextSize; i-- {
-			tempPrevItems = append(tempPrevItems, *t.subtitles.Items[i])
+			tempPrevItems = append(tempPrevItems, *t.originalSubs.Items[i])
 			itemCount++
 		}
 	}
-
 	// Reverse the collected items to maintain original order
 	for i, j := 0, len(tempPrevItems)-1; i < j; i, j = i+1, j-1 {
 		tempPrevItems[i], tempPrevItems[j] = tempPrevItems[j], tempPrevItems[i]
 	}
-
 	prevItems := tempPrevItems
 
 	// Collect next items
@@ -95,18 +96,28 @@ func (t *Editor) ReplaceLineWithCallback(index int, contextSize int, callback Te
 	if index < len(t.subtitles.Items)-1 { // Ensure there are next items
 		itemCount := 0
 		for i := index + 1; i < len(t.subtitles.Items) && itemCount < contextSize; i++ {
-			nextItems = append(nextItems, *t.subtitles.Items[i])
+			nextItems = append(nextItems, *t.originalSubs.Items[i])
 			itemCount++
 		}
 	}
+	//spew.Dump("== originial")
+	//spew.Dump(t.originalSubs.Items[index].Lines)
+	//banana := DeepCopyItem(t.subtitles.Items[index])
+	//spew.Dump("== banana")
+	//spew.Dump(banana.Lines)
+
+	//spew.Dump("== nextItems")
+	//spew.Dump(nextItems)
 
 	newLines, err := callback(prevItems, DeepCopyItem(t.subtitles.Items[index]), nextItems)
 	if err != nil {
 		return err
 	}
+	//spew.Dump("== newlines")
+	//spew.Dump(newLines)
 
 	if len(newLines) != len(t.subtitles.Items[index].Lines) {
-		return fmt.Errorf("callback returned unexpected amount of lines")
+		return fmt.Errorf("callback returned unexpected amount of lines, want: %d, got: %d", len(t.subtitles.Items[index].Lines), len(newLines))
 	}
 
 	text := ""
@@ -183,42 +194,42 @@ func DeepCopyItem(item *astisub.Item) astisub.Item {
 	return itemCopy
 }
 
-// SaveItemsToJSON saves the subtitle items to a JSON file
-func (t *Editor) saveItemsToJSON() error {
-	file, err := os.Create(t.tmpFilePath)
-	if err != nil {
-		t.logger.Error("Failed to create JSON file", "error", err)
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(t.subtitles.Items)
-	if err != nil {
-		t.logger.Error("Failed to encode items to JSON", "error", err)
-		return err
-	}
-
-	t.logger.Info("Items saved to JSON file", "path", t.tmpFilePath)
-	return nil
-}
-
-// LoadItemsFromJSON loads the subtitle items from a JSON file
-func (t *Editor) loadItemsFromJSON() error {
-	file, err := os.Open(t.tmpFilePath)
-	if err != nil {
-		t.logger.Error("Failed to open JSON file", "error", err)
-		return err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&t.subtitles.Items)
-	if err != nil {
-		t.logger.Error("Failed to decode items from JSON", "error", err)
-		return err
-	}
-
-	t.logger.Info("Items loaded from JSON file", "path", t.tmpFilePath)
-	return nil
-}
+//// SaveItemsToJSON saves the subtitle items to a JSON file
+//func (t *Editor) saveItemsToJSON() error {
+//	file, err := os.Create(t.tmpFilePath)
+//	if err != nil {
+//		t.logger.Error("Failed to create JSON file", "error", err)
+//		return err
+//	}
+//	defer file.Close()
+//
+//	encoder := json.NewEncoder(file)
+//	err = encoder.Encode(t.subtitles.Items)
+//	if err != nil {
+//		t.logger.Error("Failed to encode items to JSON", "error", err)
+//		return err
+//	}
+//
+//	t.logger.Info("Items saved to JSON file", "path", t.tmpFilePath)
+//	return nil
+//}
+//
+//// LoadItemsFromJSON loads the subtitle items from a JSON file
+//func (t *Editor) loadItemsFromJSON() error {
+//	file, err := os.Open(t.tmpFilePath)
+//	if err != nil {
+//		t.logger.Error("Failed to open JSON file", "error", err)
+//		return err
+//	}
+//	defer file.Close()
+//
+//	decoder := json.NewDecoder(file)
+//	err = decoder.Decode(&t.subtitles.Items)
+//	if err != nil {
+//		t.logger.Error("Failed to decode items from JSON", "error", err)
+//		return err
+//	}
+//
+//	t.logger.Info("Items loaded from JSON file", "path", t.tmpFilePath)
+//	return nil
+//}

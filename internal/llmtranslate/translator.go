@@ -51,19 +51,18 @@ type chatMsg struct {
 	Lang        string
 }
 
-var tmpl = `
-Given the context as follows:
+var tmpl = `Given the subtitle lines as follows:
 {{range .PrevContext}}- {{.}}
 {{end}}
-{{.Line}}
+- {{.Line}}
 {{range .PostContext}}- {{.}}
 {{end}}
 
-translate the line:
-'{{.Line}}' 
+translate the line: >>>  '{{.Line}}' <<< 
 into {{.Lang}}
 
-Please make sure to only say the translated line, no babbling or explanation, don't print the context, don't print special chars like " to indicate this is the output.
+Please make sure to only say the translated line, if the line only contains a name or something that cannot be translated. leave it like it is. 
+No babbling or explanation, don't print the context, don't print special chars like " to indicate this is the output.
 `
 
 // FormatMessage formats the message for translation using the Go template engine
@@ -110,5 +109,6 @@ func (t *Translator) Translate(ctx context.Context, prevContext, postContext []s
 	if err != nil {
 		return "", err
 	}
+
 	return resp.Choices[0].Content, nil
 }

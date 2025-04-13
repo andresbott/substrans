@@ -19,9 +19,8 @@ func Execute() {
 func newRootCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "butodo",
-		Short: "butodo (Bumbo Todo) is a demo application to explore the framework",
-		Long:  "butodo (Bumbo Todo) is a demo application to explore the framework",
+		Use:   "substrans",
+		Short: "substrans LLM subtitle translation tool",
 	}
 
 	cmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
